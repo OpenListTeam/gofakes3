@@ -19,12 +19,12 @@ import (
 
 	xml "github.com/minio/xxml"
 
+	"github.com/OpenListTeam/gofakes3"
+	"github.com/OpenListTeam/gofakes3/s3mem"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/rclone/gofakes3"
-	"github.com/rclone/gofakes3/s3mem"
 )
 
 var mockR, _ = http.NewRequest(http.MethodGet, "http://localhost:9000", nil)

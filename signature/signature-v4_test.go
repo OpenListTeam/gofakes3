@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/OpenListTeam/gofakes3/signature"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4signer "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
-	"github.com/rclone/gofakes3/signature"
 )
 
 //nolint:all
