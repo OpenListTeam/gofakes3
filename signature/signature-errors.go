@@ -40,7 +40,7 @@ const (
 	errMissingDateHeader
 	errMalformedDate
 	errMalformedExpires
-	errUnsupportAlgorithm
+	ErrUnsupportAlgorithm
 	errSignatureDoesNotMatch
 	errExpiredRequest
 
@@ -116,7 +116,7 @@ var errorCodes = errorCodeMap{
 		Description:    "Invalid X-Amz-Expires, expected to be a number",
 		HTTPStatusCode: http.StatusBadRequest,
 	},
-	errUnsupportAlgorithm: {
+	ErrUnsupportAlgorithm: {
 		Code:           "UnsupportedAlgorithm",
 		Description:    "Encountered an unsupported algorithm.",
 		HTTPStatusCode: http.StatusBadRequest,

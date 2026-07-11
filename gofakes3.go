@@ -147,7 +147,13 @@ func (g *GoFakeS3) authMiddleware(handler http.Handler) http.Handler {
 		haveAuth := len(g.v4AuthPair) > 0
 		g.mu.RUnlock()
 		if haveAuth {
-			if result := signature.V4SignVerifyWithLookup(rq, g.lookupAuthKey); result != signature.ErrNone {
+			result := signature.V4SignVerifyWithLookup(rq, g.lookupAuthKey)
+
+			if result == signature.ErrUnsupportAlgorithm {
+				result = signature.V2SignVerify(rq)
+			}
+
+			if result != signature.ErrNone {
 				g.log.Print(LogWarn, "Access Denied:", rq.RemoteAddr, "=>", rq.URL)
 
 				resp := signature.GetAPIError(result)
