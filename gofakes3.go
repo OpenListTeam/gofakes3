@@ -17,8 +17,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/OpenListTeam/gofakes3/signature"
 	xml "github.com/minio/xxml"
-	"github.com/rclone/gofakes3/signature"
 )
 
 // GoFakeS3 implements HTTP handlers for processing S3 requests and returning

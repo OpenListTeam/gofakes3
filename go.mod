@@ -1,4 +1,4 @@
-module github.com/rclone/gofakes3
+module github.com/OpenListTeam/gofakes3
 
 go 1.24.0
 

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/OpenListTeam/gofakes3"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
-	"github.com/rclone/gofakes3"
 )
 
 // signedGet makes a GET / request to url signed with the credentials given

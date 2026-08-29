@@ -12,11 +12,11 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/OpenListTeam/gofakes3"
+	"github.com/OpenListTeam/gofakes3/s3mem"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/rclone/gofakes3"
-	"github.com/rclone/gofakes3/s3mem"
 )
 
 // streamingBackend wraps an s3mem.Backend and also implements

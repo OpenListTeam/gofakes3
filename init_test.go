@@ -31,14 +31,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/OpenListTeam/gofakes3"
+	"github.com/OpenListTeam/gofakes3/s3mem"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	s3manager "github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
-	"github.com/rclone/gofakes3"
-	"github.com/rclone/gofakes3/s3mem"
 )
 
 const (
