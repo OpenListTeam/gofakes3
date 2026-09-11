@@ -18,15 +18,20 @@ func TestSlowDownError(t *testing.T) {
 }
 
 func TestUnknownErrorCodeDefaultsToInternalServerError(t *testing.T) {
-	if got, want := ErrorCode("UnknownError").Status(), http.StatusInternalServerError; got != want {
+	code := ErrorCode("UnknownError")
+	if got, want := code.Status(), http.StatusInternalServerError; got != want {
 		t.Fatalf("Status() = %d, want %d", got, want)
+	}
+	resp := ensureErrorResponse(code, "")
+	if got, want := resp.(*ErrorResponse).Message, string(code); got != want {
+		t.Errorf("message = %q, want %q", got, want)
 	}
 }
 
 func TestSlowDownHTTPResponse(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
-	(&GoFakeS3{}).httpError(recorder, request, ErrorMessage(ErrSlowDown, ErrSlowDown.Message()))
+	(&GoFakeS3{}).httpError(recorder, request, ErrSlowDown)
 
 	if got, want := recorder.Code, http.StatusServiceUnavailable; got != want {
 		t.Errorf("status code = %d, want %d", got, want)

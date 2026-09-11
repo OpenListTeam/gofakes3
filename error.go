@@ -114,10 +114,14 @@ func ensureErrorResponse(err error, requestID string) Error {
 		return err
 
 	case ErrorCode:
+		message := err.Message()
+		if message == "" {
+			message = string(err)
+		}
 		return &ErrorResponse{
 			Code:      err,
 			RequestID: requestID,
-			Message:   string(err),
+			Message:   message,
 		}
 
 	default:
