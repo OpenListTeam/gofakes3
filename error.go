@@ -87,6 +87,7 @@ const (
 	ErrNotModified ErrorCode = "NotModified"
 
 	ErrRequestTimeTooSkewed ErrorCode = "RequestTimeTooSkewed"
+	ErrSlowDown             ErrorCode = "SlowDown"
 	ErrTooManyBuckets       ErrorCode = "TooManyBuckets"
 	ErrNotImplemented       ErrorCode = "NotImplemented"
 
@@ -113,10 +114,14 @@ func ensureErrorResponse(err error, requestID string) Error {
 		return err
 
 	case ErrorCode:
+		message := err.Message()
+		if message == "" {
+			message = string(err)
+		}
 		return &ErrorResponse{
 			Code:      err,
 			RequestID: requestID,
-			Message:   string(err),
+			Message:   message,
 		}
 
 	default:
@@ -224,6 +229,8 @@ func (e ErrorCode) Message() string {
 		return "The difference between the request time and the current time is too large"
 	case ErrMalformedXML:
 		return "The XML you provided was not well-formed or did not validate against our published schema"
+	case ErrSlowDown:
+		return "Please reduce your request rate."
 	default:
 		return ""
 	}
@@ -275,6 +282,9 @@ func (e ErrorCode) Status() int {
 
 	case ErrMissingContentLength:
 		return http.StatusLengthRequired
+
+	case ErrSlowDown:
+		return http.StatusServiceUnavailable
 
 	case ErrInternal:
 		return http.StatusInternalServerError
