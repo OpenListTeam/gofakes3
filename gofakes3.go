@@ -26,6 +26,8 @@ import (
 //
 // Logic is delegated to other components, like Backend or uploader.
 type GoFakeS3 struct {
+	objectLocks objectLocks
+
 	requestID uint64
 
 	storage   Backend
@@ -211,9 +213,16 @@ func (g *GoFakeS3) httpError(w http.ResponseWriter, r *http.Request, err error) 
 		g.log.Print(LogErr, err)
 	}
 
+	if resp.ErrorCode() == ErrPreconditionFailed || resp.ErrorCode() == ErrNotModified {
+		w.Header().Del("Content-Length")
+		w.Header().Del("Content-Range")
+	}
+	if resp.ErrorCode() == ErrPreconditionFailed {
+		w.Header().Set("Content-Type", "application/xml")
+	}
 	w.WriteHeader(resp.ErrorCode().Status())
 
-	if r.Method != http.MethodHead {
+	if r.Method != http.MethodHead && resp.ErrorCode() != ErrNotModified {
 		if err := g.xmlEncoder(w).Encode(resp); err != nil {
 			g.log.Print(LogErr, err)
 			return
@@ -503,6 +512,9 @@ func (g *GoFakeS3) getObject(
 		return err
 	}
 
+	unlock := g.objectLocks.lock(bucket, false, object)
+	defer unlock()
+
 	rnge, err := parseRangeHeader(r.Header.Get("Range"))
 	if err != nil {
 		return err
@@ -576,11 +588,12 @@ func (g *GoFakeS3) writeGetOrHeadObjectResponse(obj *Object, w http.ResponseWrit
 		w.Header().Set("x-amz-version-id", string(obj.VersionID))
 	}
 
-	etag := `"` + hex.EncodeToString(obj.Hash) + `"`
-	w.Header().Set("ETag", etag)
+	if etag := objectETag(obj); etag != "" {
+		w.Header().Set("ETag", etag)
+	}
 
-	if r.Header.Get("If-None-Match") == etag {
-		return ErrNotModified
+	if err := checkPreconditions(r, obj); err != nil {
+		return err
 	}
 
 	w.Header().Set("Accept-Ranges", "bytes")
@@ -609,6 +622,9 @@ func (g *GoFakeS3) headObject(
 	if err := g.ensureBucketExists(r, bucket); err != nil {
 		return err
 	}
+
+	unlock := g.objectLocks.lock(bucket, false, object)
+	defer unlock()
 
 	obj, err := g.storage.HeadObject(r.Context(), bucket, object)
 	if err != nil {
@@ -679,6 +695,9 @@ func (g *GoFakeS3) createObjectBrowserUpload(bucket string, w http.ResponseWrite
 		return err
 	}
 
+	unlock := g.objectLocks.lock(bucket, true, key)
+	defer unlock()
+
 	result, err := g.storage.PutObject(r.Context(), bucket, key, meta, rdr, fileHeader.Size)
 	if err != nil {
 		return err
@@ -703,6 +722,9 @@ func (g *GoFakeS3) createObject(bucket, object string, w http.ResponseWriter, r 
 	if err != nil {
 		return err
 	}
+
+	unlock := g.objectLocks.lock(bucket, true, object)
+	defer unlock()
 
 	if _, ok := meta["X-Amz-Copy-Source"]; ok {
 		return g.copyObject(bucket, object, meta, w, r)
@@ -765,6 +787,10 @@ func (g *GoFakeS3) createObject(bucket, object string, w http.ResponseWriter, r 
 		return err
 	}
 
+	if err := g.checkWritePreconditions(bucket, object, r); err != nil {
+		return err
+	}
+
 	result, err := g.storage.PutObject(r.Context(), bucket, object, meta, rdr, size)
 	if err != nil {
 		return err
@@ -807,11 +833,10 @@ func (g *GoFakeS3) copyObject(bucket, object string, meta map[string]string, w h
 		return err
 	}
 
-	// if srcObj == nil {
-	// 	g.log.Print(LogErr, "unexpected nil object for key", bucket, object)
-	// 	return ErrInternal
-	// }
-	// defer srcObj.Contents.Close()
+	if srcObj == nil {
+		return ErrInternal
+	}
+	defer CheckClose(srcObj.Contents, &err)
 
 	// XXX No support for delete marker
 	// "If the current version of the object is a delete marker, Amazon S3
@@ -824,6 +849,10 @@ func (g *GoFakeS3) copyObject(bucket, object string, meta map[string]string, w h
 	// 	}
 	// }
 	delete(meta, "X-Amz-Acl")
+
+	if err := g.checkWritePreconditions(bucket, object, r); err != nil {
+		return err
+	}
 
 	result, err := g.storage.CopyObject(ctx, srcBucket, srcKey, bucket, object, meta)
 	if err != nil {
@@ -847,6 +876,9 @@ func (g *GoFakeS3) deleteObject(bucket, object string, w http.ResponseWriter, r 
 	if err := g.ensureBucketExists(r, bucket); err != nil {
 		return err
 	}
+
+	unlock := g.objectLocks.lock(bucket, true, object)
+	defer unlock()
 
 	result, err := g.storage.DeleteObject(r.Context(), bucket, object)
 	if err != nil {
@@ -876,6 +908,9 @@ func (g *GoFakeS3) deleteObjectVersion(bucket, object string, version VersionID,
 	if err := g.ensureBucketExists(r, bucket); err != nil {
 		return err
 	}
+
+	unlock := g.objectLocks.lock(bucket, true, object)
+	defer unlock()
 
 	result, err := g.versioned.DeleteObjectVersion(bucket, object, version)
 	if err != nil {
@@ -922,6 +957,9 @@ func (g *GoFakeS3) deleteMulti(bucket string, w http.ResponseWriter, r *http.Req
 	for i, o := range in.Objects {
 		keys[i] = o.Key
 	}
+
+	unlock := g.objectLocks.lock(bucket, true, keys...)
+	defer unlock()
 
 	out, err := g.storage.DeleteMulti(r.Context(), bucket, keys...)
 	if err != nil {
@@ -1123,6 +1161,12 @@ func (g *GoFakeS3) completeMultipartUpload(bucket, object string, uploadID Uploa
 
 	upload, err := g.uploader.Get(bucket, object, uploadID)
 	if err != nil {
+		return err
+	}
+
+	unlock := g.objectLocks.lock(bucket, true, object)
+	defer unlock()
+	if err := g.checkWritePreconditions(bucket, object, r); err != nil {
 		return err
 	}
 

@@ -21,6 +21,9 @@ type Object struct {
 	Hash     []byte
 	Range    *ObjectRange
 
+	// ETag is a quoted entity tag. When set, it takes precedence over Hash.
+	ETag string
+
 	// VersionID will be empty if bucket versioning has not been enabled.
 	VersionID VersionID
 

@@ -86,6 +86,8 @@ const (
 	// No need to retransmit the object
 	ErrNotModified ErrorCode = "NotModified"
 
+	ErrPreconditionFailed ErrorCode = "PreconditionFailed"
+
 	ErrRequestTimeTooSkewed ErrorCode = "RequestTimeTooSkewed"
 	ErrSlowDown             ErrorCode = "SlowDown"
 	ErrTooManyBuckets       ErrorCode = "TooManyBuckets"
@@ -221,6 +223,8 @@ func (e InternalErrorCode) Error() string        { return string(ErrInternal) }
 // know!
 func (e ErrorCode) Message() string {
 	switch e {
+	case ErrPreconditionFailed:
+		return "At least one of the preconditions you specified did not hold"
 	case ErrInvalidBucketName:
 		return `Bucket name must match the regex "^[a-zA-Z0-9.\-_]{1,255}$"`
 	case ErrNoSuchBucket:
@@ -279,6 +283,9 @@ func (e ErrorCode) Status() int {
 
 	case ErrNotModified:
 		return http.StatusNotModified
+
+	case ErrPreconditionFailed:
+		return http.StatusPreconditionFailed
 
 	case ErrMissingContentLength:
 		return http.StatusLengthRequired
